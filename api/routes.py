@@ -21,23 +21,37 @@ def health() -> HealthResponse:
         version=metadata.get("model_version", "unknown"),
     )
 
-
 @router.post("/predict", response_model=PredictionResponse)
 async def predict(image: UploadFile = File(...)) -> PredictionResponse:
-    if image.content_type not in ALLOWED_TYPES:
-        raise HTTPException(status_code=415, detail="Use JPEG, PNG or WEBP")
+
     raw = await image.read(MAX_IMAGE_BYTES + 1)
+
     if len(raw) > MAX_IMAGE_BYTES:
-        raise HTTPException(status_code=413, detail="Image exceeds 10 MB")
+        raise HTTPException(
+            status_code=413,
+            detail="Image exceeds 10 MB"
+        )
+
     predictor = getattr(router, "predictor", None)
+
     if predictor is None:
-        raise HTTPException(status_code=503, detail="Model is not ready")
+        raise HTTPException(
+            status_code=503,
+            detail="Model is not ready"
+        )
+
     try:
         with Image.open(io.BytesIO(raw)) as img:
             img.verify()
+
         with Image.open(io.BytesIO(raw)) as img:
             result = predictor.predict(img)
+
         return PredictionResponse(**result)
+
     except (UnidentifiedImageError, OSError, ValueError) as exc:
         logger.warning("Invalid image received: %s", exc)
-        raise HTTPException(status_code=400, detail="Invalid image") from exc
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid image"
+        ) from exc

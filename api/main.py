@@ -12,7 +12,7 @@ from inference.predictor import BananaPredictor
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parents[1]
-MODEL_PATH = Path(os.getenv("MODEL_PATH", ROOT / "models" / "production_model.keras"))
+MODEL_PATH = Path(os.getenv("MODEL_PATH", ROOT / "models" / "production_model.h5"))
 METADATA_PATH = Path(os.getenv("METADATA_PATH", ROOT / "models" / "metadata.json"))
 
 
