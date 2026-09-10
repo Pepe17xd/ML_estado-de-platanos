@@ -1,102 +1,59 @@
-# Clasificador de platanos xd
+# Banana AI System
 
-Proyecto de clasificación de estado de madurez de plátanos usando Machine Learning.
+Servicio de visión artificial para clasificar el estado visual de un plátano. Está diseñado para recibir imágenes JPG desde un ESP32-CAM y ejecutar inferencia en una API FastAPI dentro de Docker, desplegable en AWS EC2.
 
-Arquitectura objetivo:
+## Arquitectura
 
-PyCharm (entrenamiento) -> Modelo TensorFlow (.h5) -> AWS EC2 Flask API -> ESP32-CAM
+```text
+ESP32-CAM --HTTP POST JPG--> FastAPI --TensorFlow/Keras--> JSON
+                                  |
+                                  +--> production_model.keras
+```
 
-## Modelo
+El modelo oficial clasifica `verde`, `maduro` y `pasado`. La salida `dias_restantes` se mantiene en `null` hasta disponer de datos temporales reales; no se utiliza una heurística derivada de la clase.
 
-Se utiliza Transfer Learning con MobileNetV2.
+## Ejecución local
 
-Clases:
+### Docker
 
-0 - unripe
-1 - ripe
-2 - overripe
-3 - rotten
+```bash
+docker compose up --build
+```
 
-## Dataset recomendado
+### Python
 
-Usar un dataset de Kaggle orientado a madurez de banana:
-
-Banalyzer - Banana Ripeness Classification Dataset
-
-Estructura esperada:
-
-dataset/
-    train/
-        unripe/
-        ripe/
-        overripe/
-        rotten/
-    test/
-        unripe/
-        ripe/
-        overripe/
-        rotten/
-
-## Instalación
-
-Crear entorno virtual:
-
-python -m venv venv
-
-Activar:
-
-Windows:
-venv\Scripts\activate
-
-Linux:
-source venv/bin/activate
-
-Instalar:
-
+```bash
+python -m venv .venv
+.venv\Scripts\activate  # Windows
 pip install -r requirements.txt
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+```
 
-## Entrenamiento
+## API
 
-Ejecutar:
-
-python training/train.py
-
-Salida:
-
-models/banana_mobilenetv2.h5
-
-## Prueba local
-
-python inference/predict.py imagen.jpg
-
-## API para AWS EC2
-
-Entrar a:
-
-api_ec2/
-
-Ejecutar:
-
-python app.py
-
-Endpoint:
-
-POST /predict
+```bash
+curl http://localhost:8000/health
+curl -X POST http://localhost:8000/predict -F "image=@test_images/banana.jpeg"
+```
 
 Respuesta:
 
+```json
 {
- "class":"ripe",
- "confidence":0.95,
- "days_remaining":"2-4"
+  "estado": "maduro",
+  "confianza": 0.91,
+  "dias_restantes": null
 }
+```
 
-## Despliegue EC2
+## ESP32-CAM
 
-Instalar dependencias:
+El dispositivo debe capturar y comprimir la imagen como JPEG, enviarla como `multipart/form-data` al endpoint `/predict`, aplicar timeout y reintentos, y parsear la respuesta JSON. El modelo no se ejecuta en el ESP32.
 
-bash deployment/install_ec2.sh
+## AWS Academy
 
-Ejecutar:
+Consultar [docs/AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md).
 
-bash deployment/start_server.sh
+## Modelo
+
+La selección y las limitaciones están documentadas en [models/PRODUCTION_MODEL.md](models/PRODUCTION_MODEL.md). Las clases y configuración de entrada se leen desde [models/metadata.json](models/metadata.json); el código no mantiene una lista de clases duplicada.

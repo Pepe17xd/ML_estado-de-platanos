@@ -1,185 +1,20 @@
+"""Two-stage transfer-learning training entry point."""
+from __future__ import annotations
+import argparse, sys
+from pathlib import Path
 import tensorflow as tf
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras.layers import Dense, Dropout, GlobalAveragePooling2D
-from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-import matplotlib.pyplot as plt
-import os
-
-
-IMG_SIZE = 224
-BATCH_SIZE = 32
-EPOCHS = 20
-
-
-TRAIN_DIR = "dataset/train"
-TEST_DIR = "dataset/test"
-
-
-# Preparación de datos
-
-train_datagen = ImageDataGenerator(
-    rescale=1./255,
-    rotation_range=20,
-    zoom_range=0.2,
-    horizontal_flip=True,
-    validation_split=0.2
-)
-
-
-test_datagen = ImageDataGenerator(
-    rescale=1./255
-)
-
-
-train_data = train_datagen.flow_from_directory(
-    TRAIN_DIR,
-    target_size=(IMG_SIZE,IMG_SIZE),
-    batch_size=BATCH_SIZE,
-    class_mode="categorical",
-    subset="training"
-)
-
-
-val_data = train_datagen.flow_from_directory(
-    TRAIN_DIR,
-    target_size=(IMG_SIZE,IMG_SIZE),
-    batch_size=BATCH_SIZE,
-    class_mode="categorical",
-    subset="validation"
-)
-
-
-test_data = test_datagen.flow_from_directory(
-    TEST_DIR,
-    target_size=(IMG_SIZE,IMG_SIZE),
-    batch_size=BATCH_SIZE,
-    class_mode="categorical",
-    shuffle=False
-)
-
-
-print("\nClases detectadas:")
-print(train_data.class_indices)
-
-
-# Modelo base
-
-base_model = MobileNetV2(
-    weights="imagenet",
-    include_top=False,
-    input_shape=(224,224,3)
-)
-
-
-base_model.trainable = False
-
-
-x = base_model.output
-x = GlobalAveragePooling2D()(x)
-x = Dense(128, activation="relu")(x)
-x = Dropout(0.3)(x)
-
-output = Dense(
-    4,
-    activation="softmax"
-)(x)
-
-
-model = Model(
-    inputs=base_model.input,
-    outputs=output
-)
-
-
-model.compile(
-    optimizer=Adam(learning_rate=0.0001),
-    loss="categorical_crossentropy",
-    metrics=["accuracy"]
-)
-
-
-# Guardar mejor modelo
-
-os.makedirs(
-    "models",
-    exist_ok=True
-)
-
-
-callbacks = [
-
-EarlyStopping(
-    patience=5,
-    restore_best_weights=True
-),
-
-ModelCheckpoint(
-    "models/best_banana_model.h5",
-    save_best_only=True
-)
-
-]
-
-
-# Entrenamiento
-
-history = model.fit(
-    train_data,
-    validation_data=val_data,
-    epochs=EPOCHS,
-    callbacks=callbacks
-)
-
-
-# Evaluación
-
-loss, accuracy = model.evaluate(test_data)
-
-print("\nAccuracy prueba:")
-print(accuracy)
-
-
-# Guardar modelo final
-
-model.save(
-    "models/banana_final_model.h5"
-)
-
-
-# Gráficas
-
-plt.figure()
-
-plt.plot(history.history["accuracy"])
-plt.plot(history.history["val_accuracy"])
-
-plt.title("Accuracy")
-plt.legend(
-    ["train","validation"]
-)
-
-plt.savefig(
-    "models/accuracy.png"
-)
-
-
-plt.figure()
-
-plt.plot(history.history["loss"])
-plt.plot(history.history["val_loss"])
-
-plt.title("Loss")
-
-plt.legend(
-    ["train","validation"]
-)
-
-plt.savefig(
-    "models/loss.png"
-)
-
-
-print("\nEntrenamiento terminado")
+ROOT = Path(__file__).resolve().parents[1]; sys.path.insert(0, str(ROOT))
+from training.model import build_model, compile_model
+from training.pipeline import add_targets, load_config, save_metadata, set_seed, split_train_validation
+def main():
+    p=argparse.ArgumentParser(); p.add_argument("--config", default=ROOT/"configs/model.yaml"); p.add_argument("--data-dir", default=None); args=p.parse_args()
+    cfg=load_config(args.config); set_seed(cfg["seed"]); data=ROOT/(args.data_dir or cfg["data_dir"])
+    train_raw,val_raw=split_train_validation(data/"train",cfg); train,val=add_targets(train_raw,cfg),add_targets(val_raw,cfg)
+    model,backbone=build_model(cfg); out=ROOT/"models/banana_ripeness.keras"
+    callbacks=[tf.keras.callbacks.ModelCheckpoint(out,monitor="val_state_accuracy",mode="max",save_best_only=True),tf.keras.callbacks.EarlyStopping(monitor="val_state_accuracy",mode="max",patience=5,restore_best_weights=True),tf.keras.callbacks.ReduceLROnPlateau(monitor="val_loss",factor=.3,patience=2)]
+    compile_model(model,cfg["learning_rate_head"]); model.fit(train,validation_data=val,epochs=cfg["epochs_head"],callbacks=callbacks)
+    backbone.trainable=True
+    for layer in backbone.layers[:-30]: layer.trainable=False
+    compile_model(model,cfg["learning_rate_finetune"]); model.fit(train,validation_data=val,initial_epoch=cfg["epochs_head"],epochs=cfg["epochs_head"]+cfg["epochs_finetune"],callbacks=callbacks)
+    model.save(out); save_metadata(ROOT/"models/metadata.json",cfg); print(f"Saved model: {out}")
+if __name__ == "__main__": main()

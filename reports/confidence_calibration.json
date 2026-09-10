@@ -1,0 +1,73 @@
+{
+  "model": "C:\\Users\\anton\\Desktop\\2026-02\\PI2\\modelo\\models\\production_model_v2_1.keras",
+  "validation_images": 1123,
+  "temperature": 0.65,
+  "raw_accuracy": 0.9715048975957258,
+  "calibrated_accuracy": 0.9715048975957258,
+  "calibrated_f1_macro": 0.9724159246396373,
+  "thresholds": [
+    {
+      "threshold": 0.5,
+      "coverage": 1.0,
+      "accuracy_accepted": 0.9715048975957258,
+      "unknown_rate": 0.0
+    },
+    {
+      "threshold": 0.55,
+      "coverage": 0.9964381121994658,
+      "accuracy_accepted": 0.9740840035746202,
+      "unknown_rate": 0.003561887800534283
+    },
+    {
+      "threshold": 0.6,
+      "coverage": 0.9919857524487978,
+      "accuracy_accepted": 0.9766606822262118,
+      "unknown_rate": 0.008014247551202136
+    },
+    {
+      "threshold": 0.65,
+      "coverage": 0.9884238646482636,
+      "accuracy_accepted": 0.9774774774774775,
+      "unknown_rate": 0.01157613535173642
+    },
+    {
+      "threshold": 0.7,
+      "coverage": 0.9795191451469278,
+      "accuracy_accepted": 0.9790909090909091,
+      "unknown_rate": 0.020480854853072127
+    },
+    {
+      "threshold": 0.75,
+      "coverage": 0.9732858414959928,
+      "accuracy_accepted": 0.979871912168344,
+      "unknown_rate": 0.026714158504007122
+    },
+    {
+      "threshold": 0.8,
+      "coverage": 0.9608192341941229,
+      "accuracy_accepted": 0.9814643188137164,
+      "unknown_rate": 0.039180765805877114
+    },
+    {
+      "threshold": 0.85,
+      "coverage": 0.9421193232413179,
+      "accuracy_accepted": 0.9867674858223062,
+      "unknown_rate": 0.0578806767586821
+    },
+    {
+      "threshold": 0.9,
+      "coverage": 0.9216384683882458,
+      "accuracy_accepted": 0.991304347826087,
+      "unknown_rate": 0.07836153161175423
+    },
+    {
+      "threshold": 0.95,
+      "coverage": 0.8771148708815673,
+      "accuracy_accepted": 0.9918781725888325,
+      "unknown_rate": 0.12288512911843277
+    }
+  ],
+  "recommended_threshold": 0.6,
+  "policy": "confidence < 0.60 returns estado=desconocido",
+  "note": "El umbral se debe volver a validar en un test externo y por c\u00e1mara antes de producci\u00f3n."
+}

@@ -1,0 +1,29 @@
+{
+  "model_version": "2.0.0",
+  "model_name": "production_model",
+  "framework": "tensorflow",
+  "model_file": "production_model.keras",
+  "input_size": [
+    224,
+    224
+  ],
+  "color_mode": "RGB",
+  "preprocessing": "embedded_mobilenet_v3",
+  "classes": [
+    "verde",
+    "maduro",
+    "sobre_maduro",
+    "podrido"
+  ],
+  "outputs": [
+    "estado",
+    "confianza",
+    "days_remaining"
+  ],
+  "days_remaining_available": false,
+  "dataset": "data/dataset_v2/manifest.csv",
+  "status": "production",
+  "best_validation_accuracy": 0.9724,
+  "training_epochs_completed": 3,
+  "training_note": "Checkpoint de mejor validation accuracy antes de completar fine-tuning CPU."
+}

@@ -1,0 +1,16 @@
+seed: 42
+data_dir: dataset
+image_size: 224
+batch_size: 32
+epochs_head: 12
+epochs_finetune: 18
+learning_rate_head: 0.001
+learning_rate_finetune: 0.00001
+validation_split: 0.2
+backbone: MobileNetV3Small
+states: [unripe, ripe, overripe, rotten]
+weak_targets:
+  unripe: {maturity_pct: 15, days_remaining: 6}
+  ripe: {maturity_pct: 60, days_remaining: 3}
+  overripe: {maturity_pct: 85, days_remaining: 1}
+  rotten: {maturity_pct: 100, days_remaining: 0}

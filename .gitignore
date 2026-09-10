@@ -1,4 +1,43 @@
-venv/
+# Python
 __pycache__/
-*.pycvenv/
+*.py[cod]
+.pytest_cache/
+.venv/
 venv/
+
+# Environment and secrets
+.env
+*.pem
+*.key
+
+# Data and generated artifacts
+dataset/
+data/
+reports/
+*.csv
+*.npz
+*.log
+
+# Temporary model exports
+models/*.h5
+models/*_candidate.*
+models/*_baseline.*
+models/*_multitask.*
+models/*_regressor.*
+
+# Keep the selected production artifacts tracked
+!models/production_model.keras
+!models/metadata.json
+!models/production_model_v1.keras
+!models/production_model_v2.keras
+!models/production_model_v2_metadata.json
+!models/metadata_v2.json
+
+# Keep reproducible dataset tooling and generated decision reports, not image payloads
+!data/
+data/external/
+data/dataset_v1/
+data/dataset_v2/
+!data/build_dataset_v2.py
+!data/audit_dataset_v2.py
+!reports/

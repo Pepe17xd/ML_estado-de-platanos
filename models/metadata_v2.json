@@ -1,0 +1,14 @@
+{
+  "model_version": "2.0.0-candidate",
+  "model_name": "production_model_v2",
+  "framework": "tensorflow",
+  "model_file": "production_model_v2.keras",
+  "input_size": [224, 224],
+  "color_mode": "RGB",
+  "preprocessing": "embedded_mobilenet_v3",
+  "classes": ["verde", "maduro", "sobre_maduro", "podrido"],
+  "outputs": ["estado", "confianza", "days_remaining"],
+  "days_remaining_available": false,
+  "dataset": "data/dataset_v2/manifest.csv",
+  "status": "candidate"
+}

@@ -1,0 +1,47 @@
+{
+  "model_version": "2.1.0-candidate",
+  "model_name": "production_model_v2_1",
+  "framework": "tensorflow",
+  "model_file": "production_model_v2_1.keras",
+  "input_size": [
+    224,
+    224
+  ],
+  "color_mode": "RGB",
+  "preprocessing": "embedded_mobilenet_v3",
+  "classes": [
+    "verde",
+    "maduro",
+    "sobre_maduro",
+    "podrido"
+  ],
+  "outputs": [
+    "estado",
+    "confianza",
+    "madurez_score",
+    "days_remaining"
+  ],
+  "days_remaining_available": false,
+  "dataset": "data/dataset_v2/manifest.csv",
+  "status": "candidate",
+  "maturity_score_scale": "0-100",
+  "maturity_targets": {
+    "verde": 12.5,
+    "maduro": 40.0,
+    "sobre_maduro": 70.0,
+    "podrido": 92.5
+  },
+  "train_counts": {
+    "sobre_maduro": 2598,
+    "maduro": 3772,
+    "podrido": 4270,
+    "verde": 2128
+  },
+  "class_weights": {
+    "0": 2.0065789473684212,
+    "1": 1.1320254506892895,
+    "2": 1.6435719784449576,
+    "3": 1.0
+  },
+  "best_validation_accuracy": 0.9715049266815186
+}

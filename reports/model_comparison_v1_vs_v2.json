@@ -1,0 +1,100 @@
+{
+  "test_images": 762,
+  "distribution": {
+    "verde": 160,
+    "maduro": 204,
+    "sobre_maduro": 163,
+    "podrido": 235
+  },
+  "v1_comparable_three_class": {
+    "accuracy": 0.8779527559055118,
+    "precision_macro": 0.8643729026831043,
+    "recall_macro": 0.8740159128978225,
+    "f1_macro": 0.8617181645872649,
+    "confusion_matrix": [
+      [
+        154,
+        3,
+        3
+      ],
+      [
+        28,
+        153,
+        23
+      ],
+      [
+        25,
+        11,
+        362
+      ]
+    ]
+  },
+  "v2_native_four_class": {
+    "accuracy": 0.9278215223097113,
+    "precision_macro": 0.9329340661443308,
+    "recall_macro": 0.9227079726127495,
+    "f1_macro": 0.9253485763887741,
+    "confusion_matrix": [
+      [
+        157,
+        2,
+        0,
+        1
+      ],
+      [
+        7,
+        193,
+        2,
+        2
+      ],
+      [
+        2,
+        7,
+        130,
+        24
+      ],
+      [
+        3,
+        2,
+        3,
+        227
+      ]
+    ]
+  },
+  "v2_comparable_three_class": {
+    "accuracy": 0.963254593175853,
+    "precision_macro": 0.9540730145919225,
+    "recall_macro": 0.9640508506585214,
+    "f1_macro": 0.95878113787532,
+    "confusion_matrix": [
+      [
+        157,
+        2,
+        1
+      ],
+      [
+        7,
+        193,
+        4
+      ],
+      [
+        5,
+        9,
+        384
+      ]
+    ]
+  },
+  "model_sizes_bytes": {
+    "v1": 4446436,
+    "v2": 5330145
+  },
+  "inference_seconds_total": {
+    "v1": 13.68443600000046,
+    "v2": 11.767515200000162
+  },
+  "inference_ms_per_image": {
+    "v1": 17.958577427822124,
+    "v2": 15.442933333333546
+  },
+  "note": "V1 se compara en tres clases; V2 tambi\u00e9n reporta su resultado nativo de cuatro clases. La distribuci\u00f3n V2 es externa+actual y no es el test hist\u00f3rico de V1."
+}

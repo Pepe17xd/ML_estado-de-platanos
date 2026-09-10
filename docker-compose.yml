@@ -1,0 +1,11 @@
+services:
+  banana-api:
+    build: .
+    container_name: banana-api
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      MODEL_PATH: /app/models/production_model.keras
+      METADATA_PATH: /app/models/metadata.json
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    restart: unless-stopped
