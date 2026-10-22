@@ -21,7 +21,7 @@ def health() -> HealthResponse:
         version=metadata.get("model_version", "unknown"),
     )
 
-@router.post("/predict", response_model=PredictionResponse)
+@router.post("/predict", response_model=PredictionResponse, response_model_exclude_unset=True)
 async def predict(image: UploadFile = File(...)) -> PredictionResponse:
 
     raw = await image.read(MAX_IMAGE_BYTES + 1)
@@ -45,7 +45,11 @@ async def predict(image: UploadFile = File(...)) -> PredictionResponse:
             img.verify()
 
         with Image.open(io.BytesIO(raw)) as img:
-            result = predictor.predict(img)
+            try:
+                result = predictor.predict(img, encoded_image=raw)
+            except Exception as exc:
+                logger.exception("Prediction failed")
+                raise HTTPException(status_code=500, detail="Prediction failed") from exc
 
         return PredictionResponse(**result)
 

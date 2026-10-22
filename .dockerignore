@@ -1,0 +1,16 @@
+**
+!Dockerfile
+!docker-compose.yml
+!requirements-linux-amd64.lock.txt
+!api/
+!api/**
+!inference/
+!inference/**
+!training/
+!training/__init__.py
+!training/v3_e1/
+!training/v3_e1/__init__.py
+!training/v3_e1/augmentations.py
+!models/
+!models/metadata.json
+!models/production_model_v4.keras

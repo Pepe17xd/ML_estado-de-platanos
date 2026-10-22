@@ -1,0 +1,30 @@
+{
+  "experiment": "banana_ai_v4_remastered_v2_transfer_three_class",
+  "seed": 4072026,
+  "classes": ["verde", "maduro", "sobre_maduro"],
+  "input_size": [224, 224],
+  "batch_size": 32,
+  "epochs_head": 4,
+  "epochs_finetune": 3,
+  "fine_tune_last_layers": 30,
+  "learning_rate_head": 0.0003,
+  "learning_rate_finetune": 0.00001,
+  "weight_decay": 0.0001,
+  "v2_checkpoint": "models/production_model.h5",
+  "v2_metadata": "docker/api_metadata_v2_h5.json",
+  "intra_op_threads": 8,
+  "inter_op_threads": 2,
+  "augmentation": {
+    "seed": 4072026,
+    "max_photometric_ops": 2,
+    "geometric": {"horizontal_flip": true, "rotation_factor": 0.0, "zoom_factor": 0.0},
+    "photometric": {
+      "brightness": {"enabled": true, "probability": 0.25, "delta": 14.0},
+      "contrast": {"enabled": false, "probability": 0.2, "factor_range": [0.9, 1.1]},
+      "gamma": {"enabled": true, "probability": 0.2, "range": [0.9, 1.1]},
+      "saturation": {"enabled": true, "probability": 0.2, "range": [0.9, 1.1]},
+      "white_balance": {"enabled": true, "probability": 0.15, "gain_range": [0.96, 1.04]},
+      "shadow": {"enabled": true, "probability": 0.15, "strength_range": [0.1, 0.22], "radius_range": [0.18, 0.38], "softness": 0.1}
+    }
+  }
+}

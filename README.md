@@ -1,59 +1,170 @@
-# Banana AI System
+# Banana AI System V4 Remastered
 
-Servicio de visión artificial para clasificar el estado visual de un plátano. Está diseñado para recibir imágenes JPG desde un ESP32-CAM y ejecutar inferencia en una API FastAPI dentro de Docker, desplegable en AWS EC2.
+Servicio de visión por computadora que recibe una fotografía de un plátano y clasifica su estado visual con un modelo TensorFlow/Keras. La API local se ejecuta con FastAPI dentro de Docker. El firmware de ESP32-CAM y el despliegue remoto no están incluidos en este repositorio.
+
+## Clases y límites del modelo
+
+El modelo activo `banana_ai_v4_remastered` (versión `4.0.0`) produce exactamente estas tres clases, en este orden:
+
+1. `verde`: inmaduro.
+2. `maduro`: maduración normal.
+3. `sobre_maduro`: maduración avanzada.
+
+La API puede devolver `incierto` cuando la imagen es de mala calidad o la confianza queda bajo el umbral; es una abstención, no una cuarta clase. `dias_restantes` siempre es `null`: no hay observaciones longitudinales de vida útil. El modelo clasifica la imagen completa; no detecta ni separa cada fruta, y no hay evidencia validada para resumir manos con estados mezclados.
+
+El checkpoint está en `models/production_model_v4.keras`; su SHA-256 verificado es `2cb2918270422b0569e32a0198d16b16d212c5ffeb08e95f465ffc4fc646a9e6`. La metadata emparejada es `models/metadata.json`. El preprocesamiento V4 recibe RGB de 224×224 en rango `[0,255]`; la normalización de MobileNetV3 está incorporada en el propio modelo. No agregues una segunda normalización ni cambies el orden de clases sin actualizar y validar juntos modelo, metadata e inferencia.
 
 ## Arquitectura
 
 ```text
-ESP32-CAM --HTTP POST JPG--> FastAPI --TensorFlow/Keras--> JSON
-                                  |
-                                  +--> production_model.keras
+Cliente HTTP / ESP32-CAM
+        │ POST multipart/form-data, campo "image"
+        ▼
+FastAPI: api/main.py, api/routes.py, api/schemas.py
+        │ validación y decodificación RGB
+        ▼
+inference/predictor.py → inference/preprocessing.py → TensorFlow/Keras
+        │ models/production_model_v4.keras + models/metadata.json
+        ▼
+JSON: estado, confianza, dias_restantes=null
 ```
 
-El modelo oficial clasifica `verde`, `maduro` y `pasado`. La salida `dias_restantes` se mantiene en `null` hasta disponer de datos temporales reales; no se utiliza una heurística derivada de la clase.
+El contenedor oficial se define exclusivamente en `Dockerfile` y `docker-compose.yml`; Compose construye `banana-ai:v4-production`, publica el puerto 8000 y reinicia el servicio salvo que se detenga explícitamente. `/health` informa el nombre y la versión del modelo cargado. `/predict` acepta JPEG, PNG o WebP multipart hasta 10 MiB. No hay base de datos, persistencia de solicitudes, autenticación ni interfaz web.
 
-## Ejecución local
+## Requisitos
 
-### Docker
+- Docker Desktop o Docker Engine con el daemon iniciado y Docker Compose v2.
+- Para pruebas locales: Python 3.10 y los paquetes de `requirements.txt` y `requirements-dev.txt`.
+- La imagen se construye como `linux/amd64`. Comprueba la compatibilidad de arquitectura del servidor destino antes de desplegar.
+- El checkpoint V4 versionado en el repositorio (aprox. 5 MiB) y la metadata incluida.
 
-```bash
-docker compose up --build
+Comprobación de Docker en PowerShell:
+
+```powershell
+docker info
+docker compose version
 ```
 
-### Python
+## Iniciar y comprobar Docker
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-pip install -r requirements.txt
-uvicorn api.main:app --host 0.0.0.0 --port 8000
+Desde la raíz del repositorio:
+
+```powershell
+docker compose up --build -d
+docker compose ps
+Invoke-RestMethod http://localhost:8000/health
 ```
 
-## API
+La respuesta de salud esperada incluye `status: ok`, `model: banana_ai_v4_remastered` y `version: 4.0.0`. El estado del servicio en `docker compose ps` debe ser `healthy`.
 
-```bash
-curl http://localhost:8000/health
-curl -X POST http://localhost:8000/predict -F "image=@test_images/banana.jpeg"
+## Predecir una imagen desde terminal
+
+Con la API levantada, usa el script `scripts/predict_image.py`; envía la imagen a Docker local y no carga un segundo modelo en la máquina:
+
+```powershell
+python scripts/predict_image.py test_images/banana.jpeg
 ```
 
-Respuesta:
+El script muestra el estado, la confianza y, si aplica, el motivo de abstención. Acepta una ruta a otra imagen compatible y la opción `--url` para una API accesible en otro host:
 
-```json
-{
-  "estado": "maduro",
-  "confianza": 0.91,
-  "dias_restantes": null
-}
+```powershell
+python scripts/predict_image.py C:\ruta\foto.png --url http://localhost:8000
 ```
 
-## ESP32-CAM
+También puedes llamar directamente a la API:
 
-El dispositivo debe capturar y comprimir la imagen como JPEG, enviarla como `multipart/form-data` al endpoint `/predict`, aplicar timeout y reintentos, y parsear la respuesta JSON. El modelo no se ejecuta en el ESP32.
+```powershell
+curl.exe -X POST http://localhost:8000/predict -F "image=@test_images/banana.jpeg"
+```
 
-## AWS Academy
+Las imágenes ausentes, ilegibles, no compatibles o con datos inválidos devuelven un error claro en el cliente y un HTTP 400 en la API.
 
-Consultar [docs/AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md).
+## Pruebas
 
-## Modelo
+Con el entorno Python del proyecto y sus dependencias instaladas:
 
-La selección y las limitaciones están documentadas en [models/PRODUCTION_MODEL.md](models/PRODUCTION_MODEL.md). Las clases y configuración de entrada se leen desde [models/metadata.json](models/metadata.json); el código no mantiene una lista de clases duplicada.
+```powershell
+python -m pytest -q
+```
+
+La suite cubre contratos, preprocesamiento, metadatos, calidad, inferencia, API y entrenamiento. Las pruebas automatizadas no sustituyen la evaluación estadística en fotografías reales independientes.
+
+## Detener, reiniciar y consultar logs
+
+```powershell
+docker compose logs --tail 100 banana-api
+docker compose restart banana-api
+docker compose down
+```
+
+`docker compose down` detiene y elimina el contenedor de este proyecto; no borra volúmenes ni imágenes. No uses comandos globales de prune para limpiar Docker.
+
+## Construir y publicar posteriormente en Docker Hub
+
+Construcción local de la única imagen oficial de producción:
+
+```powershell
+docker compose build --no-cache banana-api
+docker image inspect banana-ai:v4-production --format '{{.Os}}/{{.Architecture}} {{.Id}}'
+```
+
+La arquitectura esperada es `linux/amd64`. No se ha iniciado sesión ni se ha publicado la imagen. Cuando se autorice la publicación, sustituye el marcador por tu usuario real:
+
+```powershell
+docker tag banana-ai:v4-production USUARIO_DOCKERHUB/banana-ai:v4.0.0
+docker push USUARIO_DOCKERHUB/banana-ai:v4.0.0
+```
+
+Usa una etiqueta versionada (`v4.0.0`) en producción; no dependas únicamente de `latest`. El usuario de Docker Hub no está especificado en el proyecto.
+
+## Actualizar un servidor de producción
+
+No se ha desplegado en AWS ni en otro servidor remoto. Para preparar un host Linux `amd64`, instala Docker Engine y Compose, entrega el `docker-compose.yml` y la metadata/configuración acordadas, inicia sesión en el registro autorizado y configura el servicio para usar la imagen versionada que corresponda. Un ciclo controlado tras publicar la imagen sería:
+
+```powershell
+docker pull USUARIO_DOCKERHUB/banana-ai:v4.0.0
+docker compose up -d --no-build
+docker compose ps
+docker compose logs --tail 100 banana-api
+```
+
+Antes del primer cambio remoto, conserva el nombre/tag de la imagen anterior y verifica `/health` y `/predict` desde el host. El Compose del repositorio construye la imagen local oficial; para un host que solo descarga imágenes, ajusta `image:` a la referencia versionada publicada y quita `build:` durante el procedimiento de despliegue revisado. Ninguna modificación remota se ha realizado.
+
+## Rollback a V2
+
+V2 es un respaldo legacy de cuatro clases que se ejecuta en un contenedor separado; no forma parte del servicio activo V4. Se verificó localmente la imagen `banana-ai:v2-rollback` (ID `sha256:61559badadebf623337eed07ad42f45a5677b22217e486fcbec6f10941806a30`, `linux/amd64`) junto con su checkpoint y metadata V2 conservados en `models/production_model.h5` y `docker/api_metadata_v2_h5.json`. La imagen ya construida es el método de rollback después de retirar los Dockerfiles y Compose alternativos.
+
+La imagen V2 solo existe en el daemon Docker local actual; no está en Git ni en un registro. No elimines esa imagen si se necesita rollback. Antes de limpiar/cambiar de equipo, expórtala o publícala en un registro privado autorizado y verifica que se pueda recuperar.
+
+Para cambiar temporalmente el puerto 8000 a V2:
+
+```powershell
+docker compose down
+docker run -d --name banana-api-v2-rollback --restart unless-stopped -p 8000:8000 banana-ai:v2-rollback
+Invoke-RestMethod http://localhost:8000/health
+```
+
+Comprueba que salud indique la versión `2.0.0`. Para volver a V4, detén V2 y arranca el servicio oficial:
+
+```powershell
+docker stop banana-api-v2-rollback
+docker rm banana-api-v2-rollback
+docker compose up -d
+Invoke-RestMethod http://localhost:8000/health
+```
+
+Para probar que la imagen V2 local aún arranca y responde sin tocar producción, puedes ejecutar `python scripts/verify_v2_rollback.py`; usa temporalmente el puerto 8001 y retira su contenedor al terminar.
+
+No ejecutes ambos servicios a la vez en el puerto 8000. No mezcles el checkpoint V2 con metadata V4. La imagen de rollback se probó localmente y responde con el contrato legacy; la API V2 puede devolver `podrido`.
+
+## Evaluación y limitaciones conocidas
+
+### Verificación local del release
+
+Última ejecución en este entorno (22/10/2026): `python -B -m pytest -q -p no:cacheprovider` terminó con **37 pruebas aprobadas y 241 advertencias deprecadas**. La imagen `banana-ai:v4-production` se construyó sin caché para `linux/amd64`; el contenedor reportó V4 en `/health`, quedó `healthy` y siguió saludable después de reiniciarse. `scripts/predict_image.py test_images/banana.jpeg` envió una imagen real del repositorio y recibió `sobre_maduro`, confianza `0.9086`, `dias_restantes: null`; esto es una comprobación puntual, no una métrica. Una carga inválida recibió HTTP 400. La imagen rollback local también pasó `/health`, `/predict` y healthcheck en el puerto temporal 8001, y su contenedor de prueba se retiró.
+
+El 99,01% de accuracy (100/101) y macro F1 0,9912 se reportaron en una reserva agrupada derivada de una partición histórica de validación. **No es una evaluación independiente nueva** y esa partición influyó en el desarrollo. Las perturbaciones de iluminación existentes son sintéticas; faltan pruebas representativas con cámaras reales, ESP32-CAM, grupos/manos de fruta y condiciones reales de luz. No se debe interpretar la promoción local como evidencia de precisión o invariancia lumínica en producción.
+
+El sistema clasifica la imagen global y no localiza plátanos, no distingue cada fruta parcialmente superpuesta y no ha sido validado con madurez mixta. No estima días de vida útil. La abstención actual usa heurísticas de calidad/confianza experimentales y no garantiza detectar toda imagen fuera de distribución.
+
+V4 fue integrado como principal de producción **local** por solicitud explícita; no se ha desplegado en AWS ni se ha publicado en Docker Hub. El dataset, resultados experimentales, checkpoints históricos y configuraciones de entrenamiento permanecen en el repositorio de trabajo o en artefactos ignorados cuando aplica; el contexto operativo de producción queda documentado aquí.

@@ -1,29 +1,28 @@
 {
-  "model_version": "2.0.0",
-  "model_name": "production_model",
-  "framework": "tensorflow",
-  "model_file": "production_model.keras",
-  "input_size": [
-    224,
-    224
-  ],
-  "color_mode": "RGB",
-  "preprocessing": "embedded_mobilenet_v3",
-  "classes": [
-    "verde",
-    "maduro",
-    "sobre_maduro",
-    "podrido"
-  ],
-  "outputs": [
-    "estado",
-    "confianza",
-    "days_remaining"
-  ],
-  "days_remaining_available": false,
-  "dataset": "data/dataset_v2/manifest.csv",
-  "status": "production",
-  "best_validation_accuracy": 0.9724,
-  "training_epochs_completed": 3,
-  "training_note": "Checkpoint de mejor validation accuracy antes de completar fine-tuning CPU."
+    "model_version":  "4.0.0",
+    "model_name":  "banana_ai_v4_remastered",
+    "model_file":  "production_model_v4.keras",
+    "framework":  "tensorflow_keras",
+    "classes":  [
+                    "verde",
+                    "maduro",
+                    "sobre_maduro"
+                ],
+    "input_size":  [
+                       224,
+                       224
+                   ],
+    "color_mode":  "RGB",
+    "resize_backend":  "tensorflow_bilinear",
+    "preprocessing":  "keras MobileNetV3 include_preprocessing; RGB float32 [0,255]",
+    "temperature":  0.5140569133280333,
+    "uncertainty_threshold":  0.502254398675078,
+    "uncertainty_threshold_source":  "95% selective accuracy target on V4 development subset; experimental, not independently calibrated",
+    "days_remaining_available":  false,
+    "status":  "production_local",
+    "checkpoint_sha256":  "2cb2918270422b0569e32a0198d16b16d212c5ffeb08e95f465ffc4fc646a9e6",
+    "evaluation_report":  "artifacts/v4_remastered/v4_transfer_v2_seed4072026_20261022_run04/evaluation_final.json",
+    "training_run":  "artifacts/v4_remastered/v4_transfer_v2_seed4072026_20261022_run04/run_metadata.json",
+    "production_release":  "local-2026-10-22",
+    "prior_production_backup":  "artifacts/production_backups/v2_before_v4_promotion_20261022/"
 }

@@ -1,0 +1,50 @@
+{
+  "experiment": "banana_three_class_grouped_candidate",
+  "seed": 2026,
+  "classes": ["verde", "maduro", "sobre_maduro"],
+  "source_label_mapping": {
+    "unripe": "verde",
+    "ripe": "maduro",
+    "overripe": "sobre_maduro",
+    "rotten": null
+  },
+  "exclude_conflicting_visual_groups": true,
+  "exclude_manually_reviewed_cross_label_families": [
+    ["VF-00005", "VF-00018"],
+    ["VF-00063", "VF-00199"],
+    ["VF-00189", "VF-00197"],
+    ["VF-00190", "VF-00197"],
+    ["VF-00191", "VF-00452"]
+  ],
+  "architecture": "MobileNetV3Small",
+  "imagenet_initialization": "imagenet",
+  "input_size": [224, 224],
+  "batch_size": 16,
+  "epochs_head": 4,
+  "epochs_finetune": 2,
+  "fine_tune_last_layers": 30,
+  "learning_rate_head": 0.001,
+  "learning_rate_finetune": 0.00001,
+  "weight_decay": 0.00001,
+  "class_weight_formula": "max_class_count / class_count",
+  "selection_metric": "validation_macro_f1",
+  "early_stopping_monitor": "val_loss",
+  "early_stopping_patience": 2,
+  "lr_scheduler": {"factor": 0.3, "patience": 1, "min_lr": 1e-7},
+  "augmentation": {
+    "seed": 2026,
+    "max_photometric_ops": 2,
+    "geometric": {"horizontal_flip": true, "rotation_factor": 0.0, "zoom_factor": 0.0},
+    "photometric": {
+      "brightness": {"enabled": true, "probability": 0.25, "delta": 14.0},
+      "contrast": {"enabled": false, "probability": 0.25, "factor_range": [0.9, 1.1]},
+      "gamma": {"enabled": true, "probability": 0.2, "range": [0.9, 1.1]},
+      "saturation": {"enabled": true, "probability": 0.2, "range": [0.9, 1.1]},
+      "white_balance": {"enabled": true, "probability": 0.15, "gain_range": [0.96, 1.04]},
+      "shadow": {"enabled": true, "probability": 0.15, "strength_range": [0.1, 0.22], "radius_range": [0.18, 0.38], "softness": 0.1}
+    }
+  },
+  "split_policy": "create new grouped train/validation/test from legacy train only; leave legacy validation/test unused",
+  "uncertainty_threshold_target_validation_accuracy": 0.95,
+  "test_augmentation_policy": "paired synthetic perturbations only; never use them for checkpoint selection"
+}

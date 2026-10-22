@@ -14,6 +14,7 @@ venv/
 dataset/
 data/
 reports/
+artifacts/
 *.csv
 *.npz
 *.log
@@ -32,6 +33,7 @@ models/*_regressor.*
 !models/production_model_v2.keras
 !models/production_model_v2_metadata.json
 !models/metadata_v2.json
+!models/production_model_v4.keras
 
 # Keep reproducible dataset tooling and generated decision reports, not image payloads
 !data/
