@@ -100,36 +100,51 @@ docker compose down
 
 `docker compose down` detiene y elimina el contenedor de este proyecto; no borra volúmenes ni imágenes. No uses comandos globales de prune para limpiar Docker.
 
-## Construir y publicar posteriormente en Docker Hub
+## Publicación y actualización controlada de V4 (pendiente de autorización)
 
-Construcción local de la única imagen oficial de producción:
+La imagen local `banana-ai:v4-production` es `linux/amd64` e incluye `models/production_model_v4.keras` y `models/metadata.json`. La imagen contiene el checkpoint, por lo que publicar la imagen también distribuye esos artefactos. No se ha publicado en Docker Hub ni desplegado en AWS. Usa un tag que identifique esta versión y el commit; para una referencia inmutable, despliega por digest y configura la política de tags inmutables del repositorio Docker Hub si está disponible.
+
+Publicación manual después de autorizarla:
 
 ```powershell
-docker compose build --no-cache banana-api
-docker image inspect banana-ai:v4-production --format '{{.Os}}/{{.Architecture}} {{.Id}}'
+$Image = "<DOCKERHUB_USER>/<DOCKERHUB_REPOSITORY>"
+$Tag = "v4.0.0-b5d51f1"
+docker login
+docker tag banana-ai:v4-production "${Image}:${Tag}"
+docker push "${Image}:${Tag}"
+docker buildx imagetools inspect "${Image}:${Tag}"
 ```
 
-La arquitectura esperada es `linux/amd64`. No se ha iniciado sesión ni se ha publicado la imagen. Cuando se autorice la publicación, sustituye el marcador por tu usuario real:
+Registra el `Digest: sha256:...` que imprime `imagetools inspect`. Verifica que la arquitectura publicada incluya `linux/amd64`. La etiqueta versionada facilita la lectura; el digest es la referencia que debe fijar EC2.
 
-```powershell
-docker tag banana-ai:v4-production USUARIO_DOCKERHUB/banana-ai:v4.0.0
-docker push USUARIO_DOCKERHUB/banana-ai:v4.0.0
-```
+Antes de actualizar EC2, conserva la imagen actual con otro tag local. En una instancia preparada con Docker/Compose, credenciales de solo lectura para el repositorio privado (si aplica), archivos de Compose y acceso restringido por firewall/security group:
 
-Usa una etiqueta versionada (`v4.0.0`) en producción; no dependas únicamente de `latest`. El usuario de Docker Hub no está especificado en el proyecto.
-
-## Actualizar un servidor de producción
-
-No se ha desplegado en AWS ni en otro servidor remoto. Para preparar un host Linux `amd64`, instala Docker Engine y Compose, entrega el `docker-compose.yml` y la metadata/configuración acordadas, inicia sesión en el registro autorizado y configura el servicio para usar la imagen versionada que corresponda. Un ciclo controlado tras publicar la imagen sería:
-
-```powershell
-docker pull USUARIO_DOCKERHUB/banana-ai:v4.0.0
+```bash
+export IMAGE="<DOCKERHUB_USER>/<DOCKERHUB_REPOSITORY>"
+export TAG="v4.0.0-b5d51f1"
+export PREVIOUS_TAG="<TAG_ANTERIOR>"
+export DIGEST="sha256:<DIGEST_VERIFICADO>"
+docker image tag banana-ai:v4-production banana-ai:v4-production-rollback-${PREVIOUS_TAG}
+docker pull "${IMAGE}@${DIGEST}"
+docker image tag "${IMAGE}@${DIGEST}" banana-ai:v4-production
 docker compose up -d --no-build
 docker compose ps
-docker compose logs --tail 100 banana-api
+curl --fail http://127.0.0.1:8000/health
+curl --fail -X POST http://127.0.0.1:8000/predict/esp32 -F "image=@<RUTA_LOCAL>/banana.jpg"
 ```
 
-Antes del primer cambio remoto, conserva el nombre/tag de la imagen anterior y verifica `/health` y `/predict` desde el host. El Compose del repositorio construye la imagen local oficial; para un host que solo descarga imágenes, ajusta `image:` a la referencia versionada publicada y quita `build:` durante el procedimiento de despliegue revisado. Ninguna modificación remota se ha realizado.
+Confirma `healthy`, V4 `4.0.0` y que la respuesta ESP32 contenga solo `estado` con un valor entre `verde`, `maduro`, `sobre_maduro` o `incierto`. `/predict/esp32` conserva multipart/form-data y el campo `image`. Un firmware que antes usaba `/predict` debe cambiar la ruta a `/predict/esp32`; debe tratar `incierto` como abstención. No se encontró firmware en este repositorio, así que su compatibilidad en dispositivo no está verificada.
+
+Rollback de V4 sin borrar la imagen anterior:
+
+```bash
+docker image tag banana-ai:v4-production-rollback-${PREVIOUS_TAG} banana-ai:v4-production
+docker compose up -d --no-build
+docker compose ps
+curl --fail http://127.0.0.1:8000/health
+```
+
+Compara la versión/modelo con el release previo y confirma `healthy` antes de cerrar la operación. Las reglas de entrada de AWS deben limitar el puerto publicado a los clientes autorizados o a un proxy con TLS/autenticación; la API no implementa TLS ni autenticación por sí misma. No actualices en producción sin una validación independiente representativa de cámara, luz y plátanos.
 
 ## Rollback a V2
 
