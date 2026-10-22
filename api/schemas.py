@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -10,8 +10,10 @@ class HealthResponse(BaseModel):
 
 
 class PredictionResponse(BaseModel):
-    # `podrido` remains in the response union solely for V2 rollback compatibility.
-    estado: Literal["verde", "maduro", "sobre_maduro", "incierto", "podrido"]
+    estado: Literal["verde", "maduro", "sobre_maduro", "incierto"]
     confianza: float = Field(ge=0, le=1)
-    dias_restantes: Optional[float] = Field(default=None, ge=0)
-    motivo_incertidumbre: Optional[str] = None
+    incierto: bool
+
+
+class Esp32PredictionResponse(BaseModel):
+    estado: Literal["verde", "maduro", "sobre_maduro", "incierto"]

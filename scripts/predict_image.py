@@ -83,19 +83,19 @@ def main() -> int:
         return 1
 
     state = result.get("estado")
-    if state not in ALLOWED_STATES or not isinstance(result.get("confianza"), (float, int)):
+    if (
+        set(result) != {"estado", "confianza", "incierto"}
+        or state not in ALLOWED_STATES
+        or not isinstance(result.get("confianza"), (float, int))
+        or not isinstance(result.get("incierto"), bool)
+        or not 0 <= result["confianza"] <= 1
+    ):
         print(f"Error: respuesta de API incompatible: {result}", file=sys.stderr)
         return 1
 
     print(f"Estado: {state}")
     print(f"Confianza: {result['confianza']}")
-    if state == "incierto":
-        print("Predicción incierta: sí")
-        print(f"Motivo: {result.get('motivo_incertidumbre') or 'no especificado'}")
-    else:
-        print("Predicción incierta: no")
-    days = result.get("dias_restantes")
-    print(f"Días restantes: {days if days is not None else 'null'}")
+    print(f"Predicción incierta: {'sí' if result['incierto'] else 'no'}")
     return 0
 
 

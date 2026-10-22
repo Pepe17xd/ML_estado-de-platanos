@@ -4,7 +4,7 @@ import logging
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from PIL import Image, UnidentifiedImageError
 
-from api.schemas import HealthResponse, PredictionResponse
+from api.schemas import Esp32PredictionResponse, HealthResponse, PredictionResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -21,8 +21,7 @@ def health() -> HealthResponse:
         version=metadata.get("model_version", "unknown"),
     )
 
-@router.post("/predict", response_model=PredictionResponse, response_model_exclude_unset=True)
-async def predict(image: UploadFile = File(...)) -> PredictionResponse:
+async def _predict_image(image: UploadFile) -> dict:
 
     raw = await image.read(MAX_IMAGE_BYTES + 1)
 
@@ -51,7 +50,7 @@ async def predict(image: UploadFile = File(...)) -> PredictionResponse:
                 logger.exception("Prediction failed")
                 raise HTTPException(status_code=500, detail="Prediction failed") from exc
 
-        return PredictionResponse(**result)
+        return result
 
     except (UnidentifiedImageError, OSError, ValueError) as exc:
         logger.warning("Invalid image received: %s", exc)
@@ -59,3 +58,14 @@ async def predict(image: UploadFile = File(...)) -> PredictionResponse:
             status_code=400,
             detail="Invalid image"
         ) from exc
+
+
+@router.post("/predict", response_model=PredictionResponse)
+async def predict(image: UploadFile = File(...)) -> PredictionResponse:
+    return PredictionResponse(**await _predict_image(image))
+
+
+@router.post("/predict/esp32", response_model=Esp32PredictionResponse)
+async def predict_esp32(image: UploadFile = File(...)) -> Esp32PredictionResponse:
+    result = await _predict_image(image)
+    return Esp32PredictionResponse(estado=result["estado"])

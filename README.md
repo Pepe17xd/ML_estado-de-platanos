@@ -10,7 +10,7 @@ El modelo activo `banana_ai_v4_remastered` (versión `4.0.0`) produce exactament
 2. `maduro`: maduración normal.
 3. `sobre_maduro`: maduración avanzada.
 
-La API puede devolver `incierto` cuando la imagen es de mala calidad o la confianza queda bajo el umbral; es una abstención, no una cuarta clase. `dias_restantes` siempre es `null`: no hay observaciones longitudinales de vida útil. El modelo clasifica la imagen completa; no detecta ni separa cada fruta, y no hay evidencia validada para resumir manos con estados mezclados.
+La API usa `incierto` como abstención operativa, no como cuarta clase. `/predict` informa `estado`, `confianza` e `incierto`; si se abstiene, `estado` es `incierto`. `/predict/esp32` devuelve exclusivamente `estado`. El modelo clasifica la imagen completa; no detecta ni separa cada fruta, y no hay evidencia validada para resumir manos con estados mezclados.
 
 El checkpoint está en `models/production_model_v4.keras`; su SHA-256 verificado es `2cb2918270422b0569e32a0198d16b16d212c5ffeb08e95f465ffc4fc646a9e6`. La metadata emparejada es `models/metadata.json`. El preprocesamiento V4 recibe RGB de 224×224 en rango `[0,255]`; la normalización de MobileNetV3 está incorporada en el propio modelo. No agregues una segunda normalización ni cambies el orden de clases sin actualizar y validar juntos modelo, metadata e inferencia.
 
@@ -26,10 +26,10 @@ FastAPI: api/main.py, api/routes.py, api/schemas.py
 inference/predictor.py → inference/preprocessing.py → TensorFlow/Keras
         │ models/production_model_v4.keras + models/metadata.json
         ▼
-JSON: estado, confianza, dias_restantes=null
+JSON de desarrollo: estado, confianza, incierto; JSON ESP32: estado
 ```
 
-El contenedor oficial se define exclusivamente en `Dockerfile` y `docker-compose.yml`; Compose construye `banana-ai:v4-production`, publica el puerto 8000 y reinicia el servicio salvo que se detenga explícitamente. `/health` informa el nombre y la versión del modelo cargado. `/predict` acepta JPEG, PNG o WebP multipart hasta 10 MiB. No hay base de datos, persistencia de solicitudes, autenticación ni interfaz web.
+El contenedor oficial se define exclusivamente en `Dockerfile` y `docker-compose.yml`; Compose construye `banana-ai:v4-production`, publica el puerto 8000 y reinicia el servicio salvo que se detenga explícitamente. `/health` informa el nombre y la versión del modelo cargado. `/predict` y `/predict/esp32` aceptan JPEG, PNG o WebP multipart en el campo `image`, hasta 10 MiB. `/predict` responde exactamente `{"estado":"maduro","confianza":0.883,"incierto":false}` (ejemplo); `/predict/esp32` responde exactamente `{"estado":"maduro"}`. Ante abstención, el primero devuelve `{"estado":"incierto","confianza":0.0,"incierto":true}` o la confianza calculada si es baja; ESP32 recibe `{"estado":"incierto"}`. Para un firmware que consumía `/predict`, cambiar la URL a `/predict/esp32` y leer el campo `estado`; multipart y nombre de campo `image` se mantienen. El firmware debe tratar `incierto` como abstención, sin mostrar una clase definitiva. No hay base de datos, persistencia de solicitudes, autenticación ni interfaz web.
 
 ## Requisitos
 
@@ -65,7 +65,7 @@ Con la API levantada, usa el script `scripts/predict_image.py`; envía la imagen
 python scripts/predict_image.py test_images/banana.jpeg
 ```
 
-El script muestra el estado, la confianza y, si aplica, el motivo de abstención. Acepta una ruta a otra imagen compatible y la opción `--url` para una API accesible en otro host:
+El script muestra el estado, la confianza y, si aplica, si el sistema se abstuvo. Acepta una ruta a otra imagen compatible y la opción `--url` para una API accesible en otro host:
 
 ```powershell
 python scripts/predict_image.py C:\ruta\foto.png --url http://localhost:8000
@@ -75,6 +75,7 @@ También puedes llamar directamente a la API:
 
 ```powershell
 curl.exe -X POST http://localhost:8000/predict -F "image=@test_images/banana.jpeg"
+curl.exe -X POST http://localhost:8000/predict/esp32 -F "image=@test_images/banana.jpeg"
 ```
 
 Las imágenes ausentes, ilegibles, no compatibles o con datos inválidos devuelven un error claro en el cliente y un HTTP 400 en la API.
@@ -161,10 +162,10 @@ No ejecutes ambos servicios a la vez en el puerto 8000. No mezcles el checkpoint
 
 ### Verificación local del release
 
-Última ejecución en este entorno (22/10/2026): `python -B -m pytest -q -p no:cacheprovider` terminó con **37 pruebas aprobadas y 241 advertencias deprecadas**. La imagen `banana-ai:v4-production` se construyó sin caché para `linux/amd64`; el contenedor reportó V4 en `/health`, quedó `healthy` y siguió saludable después de reiniciarse. `scripts/predict_image.py test_images/banana.jpeg` envió una imagen real del repositorio y recibió `sobre_maduro`, confianza `0.9086`, `dias_restantes: null`; esto es una comprobación puntual, no una métrica. Una carga inválida recibió HTTP 400. La imagen rollback local también pasó `/health`, `/predict` y healthcheck en el puerto temporal 8001, y su contenedor de prueba se retiró.
+Verificación de este cambio (22/10/2026): `python -m pytest -q` terminó con **39 pruebas aprobadas** y advertencias deprecadas. El benchmark exploratorio `python scripts/benchmark_lighting.py` evaluó 9 imágenes locales y 11 variantes por imagen: **87,88 %** mantuvo exactamente el estado, hubo **12 cambios de estado** en total: **2 cambios entre clases de madurez** y **11 entradas/salidas de abstención**; la diferencia absoluta media de confianza fue **0,1192**. No hay etiquetas reales y estas imágenes no constituyen un test independiente; estos resultados miden sensibilidad, no accuracy. Cambios observados bajo brillo/sombra indican que V4 aún no es invariante a iluminación. `/health`, `/predict`, `/predict/esp32`, OpenAPI y healthcheck Docker se verificaron; las cargas inválidas devolvieron HTTP 400.
 
 El 99,01% de accuracy (100/101) y macro F1 0,9912 se reportaron en una reserva agrupada derivada de una partición histórica de validación. **No es una evaluación independiente nueva** y esa partición influyó en el desarrollo. Las perturbaciones de iluminación existentes son sintéticas; faltan pruebas representativas con cámaras reales, ESP32-CAM, grupos/manos de fruta y condiciones reales de luz. No se debe interpretar la promoción local como evidencia de precisión o invariancia lumínica en producción.
 
-El sistema clasifica la imagen global y no localiza plátanos, no distingue cada fruta parcialmente superpuesta y no ha sido validado con madurez mixta. No estima días de vida útil. La abstención actual usa heurísticas de calidad/confianza experimentales y no garantiza detectar toda imagen fuera de distribución.
+El sistema clasifica la imagen global y no localiza plátanos, no distingue cada fruta parcialmente superpuesta y no ha sido validado con madurez mixta. La abstención usa heurísticas experimentales de calidad/confianza y no detecta necesariamente toda imagen fuera de distribución. La puerta de exposición usa luminancia global y cuantiles de los píxeles no recortados; tolera un fondo blanco cuando el resto de la imagen no está también sobreexpuesto, pero no localiza el plátano y puede fallar en escenas de color extremo. No se aplica corrección de color, por lo que la iluminación todavía puede cambiar la predicción.
 
 V4 fue integrado como principal de producción **local** por solicitud explícita; no se ha desplegado en AWS ni se ha publicado en Docker Hub. El dataset, resultados experimentales, checkpoints históricos y configuraciones de entrenamiento permanecen en el repositorio de trabajo o en artefactos ignorados cuando aplica; el contexto operativo de producción queda documentado aquí.

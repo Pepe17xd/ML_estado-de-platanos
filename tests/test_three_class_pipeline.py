@@ -76,6 +76,26 @@ def test_quality_gate_flags_extreme_dark_and_overexposure_inputs() -> None:
     assert "imagen_sobreexpuesta" in quality_flags(bright)
 
 
+def test_quality_gate_ignores_white_background_but_checks_chromatic_subject() -> None:
+    # Saturated green/yellow and muted overripe-like foregrounds on varied
+    # bright, dark, green, and magenta backgrounds.
+    for background in ((255, 255, 255), (8, 8, 8), (60, 130, 35), (170, 80, 140)):
+        for color in ((45, 150, 35), (225, 190, 20), (155, 105, 75)):
+            image = Image.new("RGB", (120, 90), background)
+            image.paste(Image.new("RGB", (50, 60), color), (35, 15))
+            assert "imagen_sobreexpuesta" not in quality_flags(image)
+
+    # A genuinely clipped colored subject remains a quality failure.
+    extreme = Image.new("RGB", (120, 90), (255, 255, 255))
+    extreme.paste(Image.new("RGB", (60, 65), (255, 255, 190)), (30, 12))
+    assert "imagen_sobreexpuesta" in quality_flags(extreme)
+
+
+def test_banana9_has_no_false_overexposure_flag() -> None:
+    image = Image.open(Path("test_images/banana9.jpg"))
+    assert "imagen_sobreexpuesta" not in quality_flags(image)
+
+
 def test_three_class_training_config_has_exact_contract_and_photo_controls() -> None:
     config = json.loads(Path("configs/three_class.json").read_text(encoding="utf-8"))
     assert config["classes"] == CLASSES

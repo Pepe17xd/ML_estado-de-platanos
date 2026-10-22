@@ -69,8 +69,7 @@ class BananaPredictor:
                 return {
                     "estado": "incierto",
                     "confianza": 0.0,
-                    "dias_restantes": None,
-                    "motivo_incertidumbre": ",".join(flags),
+                    "incierto": True,
                 }
         probabilities = np.asarray(self.model.predict(
             preprocess(image, self.input_size, self.resize_backend, encoded_image), verbose=0
@@ -89,13 +88,12 @@ class BananaPredictor:
             return {
                 "estado": "incierto",
                 "confianza": round(confidence, 4),
-                "dias_restantes": None,
-                "motivo_incertidumbre": "confianza_inferior_al_umbral_validado",
+                "incierto": True,
             }
         return {
             "estado": self.classes[index],
             "confianza": round(confidence, 4),
-            "dias_restantes": None,
+            "incierto": False,
         }
 
 if __name__ == "__main__":

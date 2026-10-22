@@ -68,8 +68,6 @@ def main() -> None:
         prediction = predict(image_path)
         if prediction.get("estado") not in {"verde", "maduro", "sobre_maduro", "podrido"}:
             raise AssertionError(f"unexpected legacy V2 state: {prediction}")
-        if prediction.get("dias_restantes") is not None:
-            raise AssertionError(f"unexpected days_remaining value: {prediction}")
 
         deadline = time.monotonic() + 60
         healthcheck = "starting"

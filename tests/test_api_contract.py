@@ -28,10 +28,10 @@ def jpeg_bytes() -> bytes:
 def assert_prediction_contract(response) -> None:
     assert response.status_code == 200, response.text
     result = response.json()
-    assert set(result) == {"estado", "confianza", "dias_restantes"}
-    assert result["estado"] in ["verde", "maduro", "sobre_maduro", "podrido", "incierto"]
+    assert set(result) == {"estado", "confianza", "incierto"}
+    assert result["estado"] in ["verde", "maduro", "sobre_maduro", "incierto"]
     assert 0 <= result["confianza"] <= 1
-    assert result["dias_restantes"] is None
+    assert isinstance(result["incierto"], bool)
 
 
 def test_v2_http_contract_and_controlled_image_errors_for_rollback(monkeypatch) -> None:
@@ -60,7 +60,7 @@ def test_v4_production_api_contract_uses_three_classes(monkeypatch) -> None:
             assert metadata["classes"] == ["verde", "maduro", "sobre_maduro"]
 
         def predict(self, image, encoded_image=None):
-            return {"estado": "maduro", "confianza": 0.8, "dias_restantes": None}
+            return {"estado": "maduro", "confianza": 0.8, "incierto": False}
 
     monkeypatch.setattr(main, "MODEL_PATH", ROOT / "models/production_model_v4.keras")
     monkeypatch.setattr(main, "METADATA_PATH", ROOT / "models/metadata.json")
@@ -74,7 +74,10 @@ def test_v4_production_api_contract_uses_three_classes(monkeypatch) -> None:
         result = response.json()
         assert result["estado"] in {"verde", "maduro", "sobre_maduro", "incierto"}
         assert 0 <= result["confianza"] <= 1
-        assert result["dias_restantes"] is None
+        assert set(result) == {"estado", "confianza", "incierto"}
+        esp32 = client.post("/predict/esp32", files={"image": ("banana.jpg", jpeg_bytes(), "image/jpeg")})
+        assert esp32.status_code == 200
+        assert set(esp32.json()) == {"estado"}
 
 
 def test_uncertain_prediction_is_not_a_fourth_ripeness_class(monkeypatch) -> None:
@@ -83,8 +86,7 @@ def test_uncertain_prediction_is_not_a_fourth_ripeness_class(monkeypatch) -> Non
             return {
                 "estado": "incierto",
                 "confianza": 0.42,
-                "dias_restantes": None,
-                "motivo_incertidumbre": "confianza_inferior_al_umbral_validado",
+                "incierto": True,
             }
 
     monkeypatch.setattr(main, "MODEL_PATH", ROOT / "models/production_model_v2.keras")
@@ -94,15 +96,17 @@ def test_uncertain_prediction_is_not_a_fourth_ripeness_class(monkeypatch) -> Non
         main.router.predictor = UncertainPredictor()
         try:
             response = client.post("/predict", files={"image": ("banana.jpg", jpeg_bytes(), "image/jpeg")})
+            esp32 = client.post("/predict/esp32", files={"image": ("banana.jpg", jpeg_bytes(), "image/jpeg")})
         finally:
             main.router.predictor = original
     assert response.status_code == 200
     assert response.json() == {
         "estado": "incierto",
         "confianza": 0.42,
-        "dias_restantes": None,
-        "motivo_incertidumbre": "confianza_inferior_al_umbral_validado",
+        "incierto": True,
     }
+    assert esp32.status_code == 200
+    assert esp32.json() == {"estado": "incierto"}
 
 
 def test_three_class_candidate_model_load_and_abstain_contract(monkeypatch, tmp_path) -> None:
@@ -140,8 +144,8 @@ def test_three_class_candidate_model_load_and_abstain_contract(monkeypatch, tmp_
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["estado"] == "incierto"
-    assert body["motivo_incertidumbre"] == "confianza_inferior_al_umbral_validado"
-    assert body["dias_restantes"] is None
+    assert body["incierto"] is True
+    assert set(body) == {"estado", "confianza", "incierto"}
 
 
 def test_default_v4_http_contract_and_controlled_image_errors(monkeypatch) -> None:
@@ -149,7 +153,7 @@ def test_default_v4_http_contract_and_controlled_image_errors(monkeypatch) -> No
         classes = ["verde", "maduro", "sobre_maduro"]
 
         def predict(self, image, encoded_image=None):
-            return {"estado": "maduro", "confianza": 0.91, "dias_restantes": None}
+            return {"estado": "maduro", "confianza": 0.91, "incierto": False}
 
     monkeypatch.setattr(main, "MODEL_PATH", ROOT / "models/production_model_v4.keras")
     monkeypatch.setattr(main, "METADATA_PATH", ROOT / "models/metadata.json")
@@ -163,8 +167,9 @@ def test_default_v4_http_contract_and_controlled_image_errors(monkeypatch) -> No
         assert response.status_code == 200, response.text
         body = response.json()
         assert body["estado"] in {"verde", "maduro", "sobre_maduro", "incierto"}
-        assert body["dias_restantes"] is None
+        assert set(body) == {"estado", "confianza", "incierto"}
         assert client.post("/predict", files={"image": ("broken.jpg", b"not an image", "image/jpeg")}).status_code == 400
+        assert client.post("/predict/esp32", files={"image": ("broken.jpg", b"not an image", "image/jpeg")}).status_code == 400
         predictor = main.router.predictor
         assert predictor.classes == ["verde", "maduro", "sobre_maduro"]
         main.router.predictor = None
