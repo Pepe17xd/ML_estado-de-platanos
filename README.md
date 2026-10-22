@@ -29,12 +29,13 @@ inference/predictor.py → inference/preprocessing.py → TensorFlow/Keras
 JSON de desarrollo: estado, confianza, incierto; JSON ESP32: estado
 ```
 
-El contenedor oficial se define exclusivamente en `Dockerfile` y `docker-compose.yml`; Compose construye `banana-ai:v4-production`, publica el puerto 8000 y reinicia el servicio salvo que se detenga explícitamente. `/health` informa el nombre y la versión del modelo cargado. `/predict` y `/predict/esp32` aceptan JPEG, PNG o WebP multipart en el campo `image`, hasta 10 MiB. `/predict` responde exactamente `{"estado":"maduro","confianza":0.883,"incierto":false}` (ejemplo); `/predict/esp32` responde exactamente `{"estado":"maduro"}`. Ante abstención, el primero devuelve `{"estado":"incierto","confianza":0.0,"incierto":true}` o la confianza calculada si es baja; ESP32 recibe `{"estado":"incierto"}`. Para un firmware que consumía `/predict`, cambiar la URL a `/predict/esp32` y leer el campo `estado`; multipart y nombre de campo `image` se mantienen. El firmware debe tratar `incierto` como abstención, sin mostrar una clase definitiva. No hay base de datos, persistencia de solicitudes, autenticación ni interfaz web.
+El contenedor oficial se define en `Dockerfile` y `docker-compose.yml`; Compose construye `banana-ai:v4-production` para `linux/amd64`. Por defecto solo publica en `127.0.0.1:8000`, reinicia el servicio salvo parada explicita y aplica limites configurables de 1 CPU y 1 GiB, con rotacion de logs `json-file` de 10 MiB x 3 archivos. `.env.example` muestra las variables para ajustar bind address, puerto, CPU, memoria y logs a la instancia real; mide bajo carga antes de elegir valores EC2. `/health` informa el modelo y version. `/predict` y `/predict/esp32` aceptan JPEG, PNG o WebP multipart en `image` hasta 10 MiB. `/predict` devuelve exactamente `estado`, `confianza`, `incierto`; ESP32 devuelve solo `estado` o `incierto`. El firmware que usaba `/predict` debe cambiar a `/predict/esp32`. La API no incluye TLS ni autenticacion: para acceso remoto usa un proxy seguro o reglas de red limitadas a origenes autorizados; no publiques el puerto directamente en Internet.
 
 ## Requisitos
 
 - Docker Desktop o Docker Engine con el daemon iniciado y Docker Compose v2.
 - Para pruebas locales: Python 3.10 y los paquetes de `requirements.txt` y `requirements-dev.txt`.
+- Copia `.env.example` a `.env` para ajustar `API_BIND_ADDRESS`, `API_PORT`, `BANANA_CPUS`, `BANANA_MEM_LIMIT`, `DOCKER_LOG_MAX_SIZE` y `DOCKER_LOG_MAX_FILES`; los defaults son una base inicial, no una dimension EC2 validada.
 - La imagen se construye como `linux/amd64`. Comprueba la compatibilidad de arquitectura del servidor destino antes de desplegar.
 - El checkpoint V4 versionado en el repositorio (aprox. 5 MiB) y la metadata incluida.
 
