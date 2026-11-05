@@ -1,23 +1,28 @@
-# Banana AI System V4 Remastered
+# Clasificador de Plátanos mediante Machine Learning
 
-Servicio de visión por computadora que recibe una fotografía de un plátano y clasifica su estado visual con un modelo TensorFlow/Keras. La API local se ejecuta con FastAPI dentro de Docker. El firmware de ESP32-CAM y el despliegue remoto no están incluidos en este repositorio.
+**Clasificación visual de la maduración de plátanos mediante aprendizaje automático.**
+
+![Python 3.10](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white) ![TensorFlow 2.15](https://img.shields.io/badge/TensorFlow-2.15-FF6F00?logo=tensorflow&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-0.115.6-009688?logo=fastapi&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+
+## Descripción del proyecto
+
+Banana AI es el identificador técnico de este sistema de visión por computadora. Recibe una fotografía de un plátano y clasifica su estado visual mediante el modelo V4 Remastered, desarrollado con TensorFlow/Keras. La API local se ejecuta con FastAPI dentro de Docker. El firmware de ESP32-CAM y el despliegue remoto no están incluidos en este repositorio.
 
 Su objetivo es ofrecer una clasificación visual de madurez a clientes HTTP, incluida una respuesta compacta para ESP32-CAM. El alcance es la imagen completa: el sistema no identifica cada fruta por separado. La configuración principal utiliza Python 3.10, FastAPI, TensorFlow/Keras y Docker Compose.
 
 ## Contenido
 
 - [Modelo de inteligencia artificial](#modelo-de-inteligencia-artificial)
-- [Arquitectura](#arquitectura)
-- [Dataset y evaluación](#dataset-y-evaluación)
+- [Arquitectura del sistema](#arquitectura-del-sistema)
+- [Dataset y resultados](#dataset-y-resultados)
 - [Máquina de estados de la API](#máquina-de-estados-de-la-api)
-- [Guía de compilación y ejecución](#guía-de-compilación-y-ejecución)
+- [Instalación y ejecución](#instalación-y-ejecución)
+- [Uso de la API](#uso-de-la-api)
 - [Pruebas](#pruebas)
-- [Observabilidad y telemetría](#observabilidad-y-telemetría)
 - [Publicación y actualización controlada de V4](#publicación-y-actualización-controlada-de-v4-pendiente-de-autorización)
 - [Rollback a V2](#rollback-a-v2)
-- [Evaluación y limitaciones conocidas](#evaluación-y-limitaciones-conocidas)
+- [Limitaciones técnicas](#limitaciones-técnicas)
 - [Versionado y release](#versionado-y-release)
-- [Checklist de entrega](#checklist-de-entrega)
 
 ## Modelo de inteligencia artificial
 
@@ -27,7 +32,7 @@ La arquitectura definida en [`training/three_class/model.py`](training/three_cla
 
 ## Clases y límites del modelo
 
-El modelo activo `banana_ai_v4_remastered` (versión `4.0.0`) produce exactamente estas tres clases, en este orden:
+El modelo configurado `banana_ai_v4_remastered` (versión `4.0.0`) produce exactamente estas tres clases, en este orden:
 
 1. `verde`: inmaduro.
 2. `maduro`: maduración normal.
@@ -35,9 +40,9 @@ El modelo activo `banana_ai_v4_remastered` (versión `4.0.0`) produce exactament
 
 La API usa `incierto` como abstención operativa, no como cuarta clase. `/predict` informa `estado`, `confianza` e `incierto`; si se abstiene, `estado` es `incierto`. `/predict/esp32` devuelve exclusivamente `estado`. El modelo clasifica la imagen completa; no detecta ni separa cada fruta, y no hay evidencia validada para resumir manos con estados mezclados.
 
-El checkpoint está en `models/production_model_v4.keras`; su SHA-256 verificado es `2cb2918270422b0569e32a0198d16b16d212c5ffeb08e95f465ffc4fc646a9e6`. La metadata emparejada es `models/metadata.json`. El preprocesamiento V4 recibe RGB de 224×224 en rango `[0,255]`; la normalización de MobileNetV3 está incorporada en el propio modelo. No agregues una segunda normalización ni cambies el orden de clases sin actualizar y validar juntos modelo, metadata e inferencia.
+El checkpoint está en `models/production_model_v4.keras`; su SHA-256 es `2cb2918270422b0569e32a0198d16b16d212c5ffeb08e95f465ffc4fc646a9e6`. La metadata emparejada es `models/metadata.json`. No agregues una segunda normalización ni cambies el orden de clases sin actualizar y validar juntos modelo, metadata e inferencia.
 
-## Arquitectura
+## Arquitectura del sistema
 
 ```mermaid
 flowchart LR
@@ -53,7 +58,7 @@ flowchart LR
 
 FastAPI utiliza [`api/main.py`](api/main.py), [`api/routes.py`](api/routes.py) y [`api/schemas.py`](api/schemas.py); el predictor carga [`models/production_model_v4.keras`](models/production_model_v4.keras) con su [metadata](models/metadata.json). El firmware ESP32-CAM no se incluye y su funcionamiento en dispositivo no está verificado aquí.
 
-## Dataset y evaluación
+## Dataset y resultados
 
 Recuento histórico observado en el directorio de trabajo. Estas carpetas y los artefactos experimentales pueden estar ignorados y no necesariamente acompañan una copia de Git. Los conteos son archivos por carpeta, no pruebas de imágenes únicas o independientes.
 
@@ -80,7 +85,7 @@ Matriz de confusión: filas reales y columnas predichas, en el orden `verde`, `m
 | maduro | 0 | 47 | 1 |
 | sobre_maduro | 0 | 0 | 31 |
 
-**Esta reserva procede de una partición histórica utilizada durante el desarrollo; no es una evaluación independiente de producción.** Son métricas experimentales, no telemetría operativa. Hay imágenes de ejemplo versionadas en [`test_images/`](test_images/), por ejemplo [`banana.jpeg`](test_images/banana.jpeg); no se atribuye una etiqueta validada a ese ejemplo.
+**Esta reserva procede de una partición histórica utilizada durante el desarrollo; no es una evaluación independiente de producción.** Hay imágenes de ejemplo versionadas en [`test_images/`](test_images/), por ejemplo [`banana.jpeg`](test_images/banana.jpeg); no se atribuye una etiqueta validada a ese ejemplo.
 
 ## Máquina de estados de la API
 
@@ -116,15 +121,17 @@ stateDiagram-v2
     Incierto --> Disponible: respuesta incierto
 ```
 
-## Guía de compilación y ejecución
+## Instalación y ejecución
 
-El contenedor oficial se define en `Dockerfile` y `docker-compose.yml`; Compose construye `banana-ai:v4-production` para `linux/amd64`. Por defecto solo publica en `127.0.0.1:8000`, reinicia el servicio salvo parada explicita y aplica limites configurables de 1 CPU y 1 GiB, con rotacion de logs `json-file` de 10 MiB x 3 archivos. `.env.example` muestra las variables para ajustar bind address, puerto, CPU, memoria y logs a la instancia real; mide bajo carga antes de elegir valores EC2. `/health` informa el modelo y version. `/predict` y `/predict/esp32` aceptan JPEG, PNG o WebP multipart en `image` hasta 10 MiB. `/predict` devuelve exactamente `estado`, `confianza`, `incierto`; ESP32 devuelve solo `estado` o `incierto`. El firmware que usaba `/predict` debe cambiar a `/predict/esp32`. La API no incluye TLS ni autenticacion: para acceso remoto usa un proxy seguro o reglas de red limitadas a origenes autorizados; no publiques el puerto directamente en Internet.
+El contenedor se define en `Dockerfile` y `docker-compose.yml`; Compose construye `banana-ai:v4-production` para `linux/amd64`. Por defecto publica en `127.0.0.1:8000`, reinicia el servicio salvo parada explícita y aplica límites configurables de 1 CPU y 1 GiB, con rotación de logs `json-file` de 10 MiB por archivo y hasta tres archivos. `.env.example` muestra las variables para ajustar dirección, puerto, recursos y logs; mide bajo carga antes de elegir valores para EC2.
 
-## Requisitos
+La API no incluye TLS ni autenticación. Para acceso remoto utiliza un proxy seguro o reglas de red limitadas a orígenes autorizados; no publiques el puerto directamente en Internet.
+
+### Requisitos
 
 - Docker Desktop o Docker Engine con el daemon iniciado y Docker Compose v2.
 - Para pruebas locales: Python 3.10 y los paquetes de `requirements.txt` y `requirements-dev.txt`.
-- Copia `.env.example` a `.env` para ajustar `API_BIND_ADDRESS`, `API_PORT`, `BANANA_CPUS`, `BANANA_MEM_LIMIT`, `DOCKER_LOG_MAX_SIZE` y `DOCKER_LOG_MAX_FILES`; los defaults son una base inicial, no una dimension EC2 validada.
+- Copia `.env.example` a `.env` para ajustar `API_BIND_ADDRESS`, `API_PORT`, `BANANA_CPUS`, `BANANA_MEM_LIMIT`, `DOCKER_LOG_MAX_SIZE` y `DOCKER_LOG_MAX_FILES`; los valores por defecto son una base inicial, no una dimensión EC2 validada.
 - La imagen se construye como `linux/amd64`. Comprueba la compatibilidad de arquitectura del servidor destino antes de desplegar.
 - El checkpoint V4 versionado en el repositorio (aprox. 5 MiB) y la metadata incluida.
 
@@ -135,7 +142,7 @@ docker info
 docker compose version
 ```
 
-## Compilar, iniciar y comprobar Docker
+### Compilar, iniciar y comprobar Docker
 
 Desde la raíz del repositorio, construye la imagen y después inicia el servicio:
 
@@ -154,7 +161,15 @@ Invoke-RestMethod http://localhost:8000/health
 
 La respuesta de salud esperada incluye `status: ok`, `model: banana_ai_v4_remastered` y `version: 4.0.0`. El estado del servicio en `docker compose ps` debe ser `healthy`.
 
-## Predecir una imagen desde terminal
+## Uso de la API
+
+| Método | Ruta | Respuesta |
+|---|---|---|
+| GET | `/health` | Estado, nombre y versión del modelo. |
+| POST | `/predict` | Estado, confianza e indicación de abstención. |
+| POST | `/predict/esp32` | Estado para clientes como ESP32-CAM. |
+
+Una respuesta de salud esperada es `{"status":"ok","model":"banana_ai_v4_remastered","version":"4.0.0"}`.
 
 Con la API levantada, usa el script `scripts/predict_image.py`; envía la imagen a Docker local y no carga un segundo modelo en la máquina:
 
@@ -198,18 +213,6 @@ python -m pytest -q
 La suite cubre contratos, preprocesamiento, metadatos, calidad, inferencia, API y entrenamiento. Las pruebas automatizadas no sustituyen la evaluación estadística en fotografías reales independientes.
 
 En [`tests/`](tests/) se encuentran pruebas del contrato HTTP y de metadatos, transferencia V4 y hash del checkpoint, preparación de tres clases, calidad de imagen, aumentos y evaluación V3, y validación de observaciones temporales. El registro histórico de este README indica **39 pruebas aprobadas el 22/10/2026**; otro registro local de ese día (`artifacts/production_release/v4_local_production_20261022.json`, no versionado) informa 37 aprobadas en una ejecución anterior. No representan una ejecución actual ni prueban que el servicio esté activo.
-
-## Observabilidad y telemetría
-
-| Categoría | Evidencia disponible | Alcance |
-|---|---|---|
-| Métricas experimentales | Accuracy, macro-F1 y matriz de la sección de evaluación. | Resultados históricos de modelo; no son mediciones operativas. |
-| Logs y salud | [`api/main.py`](api/main.py) y [`api/routes.py`](api/routes.py) registran carga, errores y advertencias; [`docker-compose.yml`](docker-compose.yml) configura rotación y healthcheck. | La configuración no demuestra que el servicio esté activo. |
-| Dashboard operativo | No se identificó un dashboard activo ni un enlace verificable. | Pendiente de evidencia y URL reales. |
-
-### Dashboard de telemetría: pendiente de enlace verificable
-
-**URL del dashboard: pendiente de proporcionar y verificar.** Los logs y el healthcheck no sustituyen un dashboard de telemetría. No se presenta un enlace de ejemplo como si fuera un servicio activo.
 
 ## Detener, reiniciar y consultar logs
 
@@ -294,28 +297,18 @@ Para probar que la imagen V2 local aún arranca y responde sin tocar producción
 
 No ejecutes ambos servicios a la vez en el puerto 8000. No mezcles el checkpoint V2 con metadata V4. La imagen de rollback se probó localmente y responde con el contrato legacy; la API V2 puede devolver `podrido`.
 
-## Evaluación y limitaciones conocidas
+## Limitaciones técnicas
 
 ### Verificación local del release
 
-Verificacion de este cambio (22/10/2026): `python -m pytest -q` termino con **39 pruebas aprobadas** y advertencias deprecadas. El benchmark exploratorio `python scripts/benchmark_lighting.py` evaluo 9 imagenes locales y 11 variantes por imagen: **87,88 %** mantuvo exactamente el estado; hubo **12 cambios de estado**: **2 cambios entre clases de madurez** y **10 transiciones hacia/desde incierto**. Hubo 11 respuestas inciertas entre variantes, incluida una variante de una imagen que ya era incierta. La diferencia absoluta media de confianza fue **0,1192**. No hay etiquetas reales y estas imagenes no constituyen un test independiente; estos resultados miden sensibilidad, no accuracy. Los cambios bajo brillo/sombra indican que V4 aun no es invariante a iluminacion. `/health`, `/predict`, `/predict/esp32`, OpenAPI y healthcheck Docker se verificaron; las cargas invalidas devolvieron HTTP 400.
+En la verificación local del 22/10/2026, `python -m pytest -q` terminó con **39 pruebas aprobadas** y advertencias de deprecación. El benchmark exploratorio `python scripts/benchmark_lighting.py` evaluó 9 imágenes locales y 11 variantes por imagen: **87,88 %** mantuvo el estado; hubo **12 cambios**: **2 entre clases de madurez** y **10 hacia o desde incierto**. Se registraron 11 respuestas inciertas entre las variantes y una diferencia absoluta media de confianza de **0,1192**. Sin etiquetas reales, el resultado mide sensibilidad, no accuracy. En aquella verificación también se comprobaron `/health`, `/predict`, `/predict/esp32`, OpenAPI y el healthcheck de Docker.
 
-El 99,01% de accuracy (100/101) y macro F1 0,9912 se reportaron en una reserva agrupada derivada de una partición histórica de validación. **No es una evaluación independiente nueva** y esa partición influyó en el desarrollo. Las perturbaciones de iluminación existentes son sintéticas; faltan pruebas representativas con cámaras reales, ESP32-CAM, grupos/manos de fruta y condiciones reales de luz. No se debe interpretar la promoción local como evidencia de precisión o invariancia lumínica en producción.
+Las perturbaciones de iluminación existentes son sintéticas; faltan pruebas representativas con cámaras reales, ESP32-CAM, grupos o manos de fruta y condiciones reales de luz. La promoción local no demuestra precisión ni invariancia lumínica en producción.
 
 El sistema clasifica la imagen global y no localiza plátanos, no distingue cada fruta parcialmente superpuesta y no ha sido validado con madurez mixta. La abstención usa heurísticas experimentales de calidad/confianza y no detecta necesariamente toda imagen fuera de distribución. La puerta de exposición usa luminancia global y cuantiles de los píxeles no recortados; tolera un fondo blanco cuando el resto de la imagen no está también sobreexpuesto, pero no localiza el plátano y puede fallar en escenas de color extremo. No se aplica corrección de color, por lo que la iluminación todavía puede cambiar la predicción.
 
-V4 fue integrado como principal de producción **local** por solicitud explícita; no se ha desplegado en AWS ni se ha publicado en Docker Hub. El dataset, resultados experimentales, checkpoints históricos y configuraciones de entrenamiento permanecen en el repositorio de trabajo o en artefactos ignorados cuando aplica; el contexto operativo de producción queda documentado aquí.
+V4 se integró como modelo principal de producción **local**. El dataset, los resultados experimentales y algunos checkpoints históricos pueden permanecer en el directorio de trabajo o en artefactos ignorados.
 
 ## Versionado y release
 
-En la inspección local de Git se observó el tag histórico `v1.0-production`, cuya descripción se refiere al despliegue de **V2** en AWS EC2. No se observó un tag con el nombre exacto `v1.0`, y el tag histórico no debe interpretarse como release de V4. Para el release académico V4 queda pendiente confirmar la revisión que se entregará y crear posteriormente el tag exacto `v1.0` si el profesor lo exige. No se ha creado aquí.
-
-## Checklist de entrega
-
-| Requisito del profesor | Estado verificable | Evidencia | Pendiente |
-|---|---|---|---|
-| Repositorio digital cerrado | No verificado | La privacidad y los permisos no pueden deducirse de Git local. | Confirmar y documentar acceso restringido en el proveedor. |
-| Tag `v1.0` | Pendiente de confirmación | Existe `v1.0-production` histórico de V2; no se observó `v1.0` exacto. | Confirmar revisión V4 y criterio del profesor; crear el tag exacto si corresponde. |
-| Guía de compilación | Documentada; ejecución actual no verificada | Secciones de requisitos y compilación; `Dockerfile` y `docker-compose.yml`. | Verificar la guía en un entorno autorizado antes de la entrega. |
-| Diagrama FSM | Documentado | Diagrama conceptual de solicitud basado en el código de API e inferencia. | Confirmar que su alcance satisface la rúbrica. |
-| Enlace activo al dashboard de telemetría | No verificado | No se identificó URL ni dashboard operativo verificable. | Proporcionar y comprobar una URL real. |
+El tag histórico `v1.0-production` está asociado a V2 y su despliegue en AWS EC2. No corresponde a un release de V4. En la inspección local no se observó un tag con el nombre exacto `v1.0`.
